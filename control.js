@@ -75,14 +75,15 @@ function controlTop(playertop, playerleft, fallspeed, ladderpara, runtime) {
   return [playertop + newspeed, newspeed, 0];
 }
 
-function controlLeft(action, left) {
+function controlLeft(action, left, runtime) {
+  var horispeed = parseInt((new Date() - runtime) / 6);
   var newleft = left;
   if (action == -1) {
-    newleft = left -= 5;
+    newleft = left -= horispeed;
     if (newleft < 0)
       newleft = 0
   } else if (action == 1) {
-    newleft = left += 5;
+    newleft = left += horispeed;
     if (newleft > windowwidth - playerwidth)
       newleft = windowwidth - playerwidth
   }
@@ -222,11 +223,11 @@ var ControlBox = React.createClass({
     })
   },
   _timetic: function() {
+    var runtime = this.state.runtime;
     var newladderpara = this.state.ladderpara.filter(isNotOverTime);
     var left = tonumber(this.state.playerstyle.left);
-    var newleft = controlLeft(this.state.action, left);
+    var newleft = controlLeft(this.state.action, left, runtime);
     var top = tonumber(this.state.playerstyle.top);
-    var runtime = this.state.runtime;
     var newtime = new Date()-0;
     var [newtop, newspeed, steptype] = controlTop(top, newleft, this.state.fallspeed, newladderpara, runtime);
     this.setState({playerstyle: {
