@@ -34,11 +34,7 @@ function getRandomStair(round) {
   } else if (level >= 5 && typerand > 0.9) {
     type = 2;
   }
-  return {
-    x: Math.floor(Math.random() * (windowwidth - stairwidth)),
-    y: 500,
-    type: type
-  }
+  return {x: Math.floor(Math.random() * (windowwidth - stairwidth)), y: 500, type: type, hight: stairheight, width: stairwidth};
 }
 
 function isNotOut(stair) {
@@ -240,37 +236,15 @@ var ControlBox = React.createClass({
       lasthurt: 0,
       round: 0,
       laststairround: 0,
-      playerstyle: {
-        width: playerwidth,
-        height: playerheight,
-        y: initialplayery,
-        x: initialplayerx
-      },
-      ladderpara: [{
-        x: 150 - stairwidth/2,
-        y: 250,
-        type: 0
-      }, {
-        x: 80 - stairwidth/2,
-        y: 320,
-        type: 0
-      }, {
-        x: 220 - stairwidth/2,
-        y: 320,
-        type: 0
-      }, {
-        x: 150 - stairwidth/2,
-        y: 390,
-        type: 0
-      }, {
-        x: 80 - stairwidth/2,
-        y: 460,
-        type: 0
-      }, {
-        x: 220 - stairwidth/2,
-        y: 460,
-        type: 0
-      }]
+      playerstyle: {width: playerwidth, height: playerheight, y: initialplayery, x: initialplayerx},
+      ladderpara: [
+        {x: 150 - stairwidth/2, y: 250, type: 0, hight: stairheight, width: stairwidth},
+        {x: 80 - stairwidth/2, y: 320, type: 0, hight: stairheight, width: stairwidth},
+        {x: 220 - stairwidth/2, y: 320, type: 0, hight: stairheight, width: stairwidth},
+        {x: 150 - stairwidth/2, y: 390, type: 0, hight: stairheight, width: stairwidth},
+        {x: 80 - stairwidth/2, y: 460, type: 0, hight: stairheight, width: stairwidth},
+        {x: 220 - stairwidth/2, y: 460, type: 0, hight: stairheight, width: stairwidth}
+      ]
     })
   },
   _timetic: function() {
