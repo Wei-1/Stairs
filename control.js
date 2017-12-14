@@ -173,6 +173,22 @@ var Info = React.createClass({
   }
 });
 
+var Player = React.createClass({
+  render: function() {
+    var playerstyle = {
+      width: this.props.player.width + "px",
+      height: this.props.player.height + "px",
+      'backgroundColor': "yellow",
+      position: "absolute",
+      top: this.props.player.y + "px",
+      left: this.props.player.x + "px"
+    }
+    return (
+      <div style={playerstyle} />
+    );
+  }
+});
+
 var CodeBox = React.createClass({
   render: function() {
     var codestyle = {
@@ -225,12 +241,10 @@ var ControlBox = React.createClass({
       round: 0,
       laststairround: 0,
       playerstyle: {
-        width: playerwidth + "px",
-        height: playerheight + "px",
-        'backgroundColor': "yellow",
-        position: "absolute",
-        top: initialplayery + "px",
-        left: initialplayerx + "px"
+        width: playerwidth,
+        height: playerheight,
+        y: initialplayery,
+        x: initialplayerx
       },
       ladderpara: [{
         x: 150 - stairwidth/2,
@@ -268,17 +282,15 @@ var ControlBox = React.createClass({
       var runtime = new Date()-0;
       eval(this.state.codestring);    
       var newtime = new Date()-0;
-      var left = tonumber(this.state.playerstyle.left);
+      var left = this.state.playerstyle.x;
       var newleft = controlLeft(action, left);
-      var top = tonumber(this.state.playerstyle.top);
+      var top = this.state.playerstyle.y;
       var [newtop, newspeed, steptype] = controlTop(top, newleft, this.state.fallspeed, ladders);
       this.setState({playerstyle: {
-        width: playerwidth + "px",
-        height: playerheight + "px",
-        'backgroundColor': "yellow",
-        position: "absolute",
-        top: newtop + "px",
-        left: newleft + "px"
+        width: playerwidth,
+        height: playerheight,
+        y: newtop,
+        x: newleft
       }})
       var lastround = this.state.round - this.state.laststairround;
       if (lastround > maxstairround || (lastround > minstairround && Math.random() < 0.03)) {
@@ -327,7 +339,7 @@ var ControlBox = React.createClass({
       <div>
         <div style={backgroundstyle} />
         <Ladder ladderpara={this.state.ladderpara} />
-        <div style={this.state.playerstyle} />
+        <Player player={this.state.playerstyle} />
         <Info round={this.state.round} hp={this.state.hp} />
         <CodeBox handleCodeChange={this.handleCodeChange}
           codestring={this.state.codestring} />
