@@ -111,6 +111,32 @@ function controlHp(hp, newtop, fallspeed, newspeed, lasthurt, steptype) {
   }
 }
 
+var LinkBox = React.createClass({
+  render: function() {
+    var linkstyle = {
+      whiteSpace: "pre",
+      'color': "black",
+      position: "absolute",
+      width: "298px",
+      height: "46px",
+      top: "552px",
+      left: "1px",
+      border: "1px solid black",
+      fontFamily: "Courier New",
+      fontSize: "14px",
+      textAlign: "center",
+      lineHeight: "46px"
+    };
+    return(
+      <div style={linkstyle} >
+        <a href="https://github.com/Wei-1/Stairs" target="_blank" >
+          https://github.com/Wei-1/Stairs
+        </a>
+      </div>
+    );
+  }
+});
+
 var Stair = React.createClass({
   render: function() {
     var staircolor = "blue";
@@ -209,10 +235,10 @@ var GoBox = React.createClass({
       whiteSpace: "pre",
       'color': "black",
       position: "absolute",
-      width: "100px",
-      height: "50px",
+      width: "298px",
+      height: "46px",
       top: "502px",
-      left: "100px",
+      left: "1px",
       border: "1px solid black",
       fontFamily: "Courier New",
       fontSize: "50px",
@@ -232,11 +258,10 @@ var ControlBox = React.createClass({
       gogo: false,
       hp: initialplayerhp,
       action: initialplayeraction,
-      fallspeed: initialplayerspeed,
       lasthurt: 0,
       round: 0,
       laststairround: 0,
-      playerstyle: {width: playerwidth, height: playerheight, y: initialplayery, x: initialplayerx},
+      playerstyle: {width: playerwidth, height: playerheight, y: initialplayery, x: initialplayerx, fallspeed: initialplayerspeed},
       ladderpara: [
         {x: 150 - stairwidth/2, y: 250, type: 0, hight: stairheight, width: stairwidth},
         {x: 80 - stairwidth/2, y: 320, type: 0, hight: stairheight, width: stairwidth},
@@ -256,13 +281,12 @@ var ControlBox = React.createClass({
       var runtime = new Date()-0;
       eval(this.state.codestring);    
       var newtime = new Date()-0;
-      var left = this.state.playerstyle.x;
-      var newleft = controlLeft(action, left);
-      var top = this.state.playerstyle.y;
-      var [newtop, newspeed, steptype] = controlTop(top, newleft, this.state.fallspeed, ladders);
+      var newleft = controlLeft(action, this.state.playerstyle.x);
+      var [newtop, newspeed, steptype] = controlTop(this.state.playerstyle.y, newleft, this.state.playerstyle.fallspeed, ladders);
       this.setState({playerstyle: {
         width: playerwidth,
         height: playerheight,
+        fallspeed: newspeed,
         y: newtop,
         x: newleft
       }})
@@ -271,7 +295,7 @@ var ControlBox = React.createClass({
         ladders.push(getRandomStair(this.state.round));
         this.setState({laststairround: this.state.round});
       }
-      var newhp = controlHp(this.state.hp, newtop, this.state.fallspeed, newspeed, this.state.lasthurt, steptype)
+      var newhp = controlHp(this.state.hp, newtop, this.state.playerstyle.fallspeed, newspeed, this.state.lasthurt, steptype)
       if (newhp < this.state.hp) {
         this.setState({lasthurt: nohurtround});
       } else {
@@ -279,7 +303,6 @@ var ControlBox = React.createClass({
         this.setState({lasthurt: newhurt});
       }
       this.setState({ladderpara: ladders});
-      this.setState({fallspeed: newspeed});
       this.setState({hp: newhp});
       if (newhp <= 0 || newtime-runtime > 100) {
         this.resetGame();
@@ -297,7 +320,7 @@ var ControlBox = React.createClass({
   },
   getInitialState: function() {
     setInterval(this._timetic, pollInterval);
-    return { gogo: false, round: 0, playerstyle: {}, hp: 9, action: 0, fallspeed: 0, lasthurt: 0, ladderpara: [], laststairround: 0,
+    return { gogo: false, round: 0, playerstyle: {}, hp: 9, action: 0, lasthurt: 0, ladderpara: [], laststairround: 0,
       codestring: "// Get the player and ladders every round\nconsole.log(player);\nconsole.log(ladders);\n\n// 0: wait, -1: left, 1: right\naction = 1;" };
   },
   render: function() {
@@ -318,6 +341,7 @@ var ControlBox = React.createClass({
         <CodeBox handleCodeChange={this.handleCodeChange}
           codestring={this.state.codestring} />
         <GoBox handleGo={this.handleGo} />
+        <LinkBox />
       </div>
     );
   }
