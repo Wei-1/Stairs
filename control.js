@@ -14,52 +14,50 @@ var initialplayery = 250 - playerheight;
 var initialplayerhp = 9;
 var initialplayerspeed = 0;
 var initialplayeraction = 0;
-var timelimit = 5000;
-var minstairtime = 200;
-var maxstairtime = 1500;
+var minstairround = 8;
+var maxstairround = 40;
 var gravity = 1;
 var stairstartrate = 10;
-var nohurttime = 10;
+var nohurtround = 10;
 
 function tonumber(str) {
   var numstr = str.replace(/\D/g,'');
   return Number(numstr);
 }
 
-function getRandomStair(time) {
+function getRandomStair(round) {
   var type = 0;
   var typerand = Math.random();
-  var level = Math.min(90, (new Date() - time) / 2000);
+  var level = Math.min(90, round * 5);
   if (level >= 5 && typerand < (level + 10) / 200.0) {
     type = 1;
   } else if (level >= 5 && typerand > 0.9) {
     type = 2;
   }
   return {
-    time: new Date()-0,
     x: Math.floor(Math.random() * (windowwidth - stairwidth)),
+    y: 500,
     type: type
   }
 }
 
-function isNotOverTime(stair) {
-  return new Date() - stair.time < timelimit + stairheight * stairstartrate;
+function isNotOut(stair) {
+  return stair.y > -stairheight;
 }
 
-function time2top(nowtime, stairtime) {
-  return Math.floor((timelimit-(nowtime-stairtime)) / stairstartrate);
+function nextStair(stair) {
+  stair.y -= 5;
+  return stair;
 }
 
-function controlTop(playertop, playerleft, fallspeed, ladderpara, runtime) {
+function controlTop(playertop, playerleft, fallspeed, ladderpara) {
   var playerbottom = playertop + playerheight;
   var newspeed = fallspeed + gravity;
   var stairspeed = pollInterval / stairstartrate;
-  var nowtime = new Date()-0;
   for (var i = 0; i < ladderpara.length; i++) {
     var stairpara = ladderpara[i];
-    var stairtime = stairpara.time;
-    var stairtop = time2top(nowtime, stairtime);
-    var stairtop_last = time2top(runtime, stairtime);
+    var stairtop_last = stairpara.y + 5;
+    var stairtop = stairtop_last - 5;
     var stairleft = stairpara.x;
     var stairtype = stairpara.type;
     if (playerleft + playerwidth > stairleft && playerleft < stairleft + stairwidth) {
@@ -75,15 +73,15 @@ function controlTop(playertop, playerleft, fallspeed, ladderpara, runtime) {
   return [playertop + newspeed, newspeed, 0];
 }
 
-function controlLeft(action, left, runtime) {
-  var horispeed = parseInt((new Date() - runtime) / 6);
+function controlLeft(action, left) {
+  var horispeed = 5;
   var newleft = left;
   if (action == -1) {
-    newleft = left -= horispeed;
+    newleft = left - horispeed;
     if (newleft < 0)
       newleft = 0
   } else if (action == 1) {
-    newleft = left += horispeed;
+    newleft = left + horispeed;
     if (newleft > windowwidth - playerwidth)
       newleft = windowwidth - playerwidth
   }
@@ -141,10 +139,8 @@ var Stair = React.createClass({
 
 var Ladder = React.createClass({
   render: function() {
-    var nowtime = new Date()-0;
     var stairlist = this.props.ladderpara.map(function(stairpara, index) {
-      var stairtime = stairpara.time;
-      var stairtop = time2top(nowtime, stairtime);
+      var stairtop = stairpara.y;
       var stairleft = stairpara.x;
       var stairtype = stairpara.type;
       return (
@@ -170,9 +166,50 @@ var Info = React.createClass({
       left: "10px",
       fontFamily: "Courier New"
     };
-    var score = Math.floor((new Date() - this.props.time) / 1000);
+    var score = Math.floor((this.props.round) / 30);
     return(
-      <div style={infostyle} > {"<A S>  HP:" + this.props.hp + "  Score:" + score} </div>
+      <div style={infostyle} > {"  HP:" + this.props.hp + "  Score:" + score} </div>
+    );
+  }
+});
+
+var CodeBox = React.createClass({
+  render: function() {
+    var codestyle = {
+      whiteSpace: "pre",
+      'color': "white",
+      position: "absolute",
+      top: "0px",
+      left: "302px",
+    };
+    return(
+      <div style={codestyle} >
+        <textarea rows="50" cols="80" name="code" style={{fontFamily: "Courier New"}}
+          onChange={this.props.handleCodeChange} value={this.props.codestring} />
+      </div>
+    );
+  }
+});
+
+var GoBox = React.createClass({
+  render: function() {
+    var codestyle = {
+      whiteSpace: "pre",
+      'color': "black",
+      position: "absolute",
+      width: "100px",
+      height: "50px",
+      top: "502px",
+      left: "100px",
+      border: "1px solid black",
+      fontFamily: "Courier New",
+      fontSize: "50px",
+      textAlign: "center"
+    };
+    return(
+      <div style={codestyle} onClick={this.props.handleGo} >
+        GO
+      </div>
     );
   }
 });
@@ -180,13 +217,13 @@ var Info = React.createClass({
 var ControlBox = React.createClass({
   resetGame: function() {
     this.setState({
+      gogo: false,
       hp: initialplayerhp,
       action: initialplayeraction,
       fallspeed: initialplayerspeed,
       lasthurt: 0,
-      time: new Date()-0,
-      runtime: new Date()-0,
-      laststairtime: new Date()-0,
+      round: 0,
+      laststairround: 0,
       playerstyle: {
         width: playerwidth + "px",
         height: playerheight + "px",
@@ -196,93 +233,86 @@ var ControlBox = React.createClass({
         left: initialplayerx + "px"
       },
       ladderpara: [{
-        time: new Date()-2500,
         x: 150 - stairwidth/2,
+        y: 250,
         type: 0
       }, {
-        time: new Date()-1800,
         x: 80 - stairwidth/2,
+        y: 320,
         type: 0
       }, {
-        time: new Date()-1800,
         x: 220 - stairwidth/2,
+        y: 320,
         type: 0
       }, {
-        time: new Date()-1100,
         x: 150 - stairwidth/2,
+        y: 390,
         type: 0
       }, {
-        time: new Date()-400,
         x: 80 - stairwidth/2,
+        y: 460,
         type: 0
       }, {
-        time: new Date()-400,
         x: 220 - stairwidth/2,
+        y: 460,
         type: 0
       }]
     })
   },
   _timetic: function() {
-    var runtime = this.state.runtime;
-    var newladderpara = this.state.ladderpara.filter(isNotOverTime);
-    var left = tonumber(this.state.playerstyle.left);
-    var newleft = controlLeft(this.state.action, left, runtime);
-    var top = tonumber(this.state.playerstyle.top);
-    var newtime = new Date()-0;
-    var [newtop, newspeed, steptype] = controlTop(top, newleft, this.state.fallspeed, newladderpara, runtime);
-    this.setState({playerstyle: {
-      width: playerwidth + "px",
-      height: playerheight + "px",
-      'backgroundColor': "yellow",
-      position: "absolute",
-      top: newtop + "px",
-      left: newleft + "px"
-    }})
-    var lasttime = newtime - this.state.laststairtime;
-    if (lasttime > maxstairtime || (lasttime > minstairtime && Math.random() < 0.03)) {
-      this.setState({laststairtime: newtime});
-      newladderpara.push(getRandomStair(this.state.time));
+    if(this.state.gogo) {
+      this.setState({round: this.state.round + 1});
+      var ladders = this.state.ladderpara.filter(isNotOut).map(nextStair);
+      var player = this.state.playerstyle;
+      var action = 0;
+      var runtime = new Date()-0;
+      eval(this.state.codestring);    
+      var newtime = new Date()-0;
+      var left = tonumber(this.state.playerstyle.left);
+      var newleft = controlLeft(action, left);
+      var top = tonumber(this.state.playerstyle.top);
+      var [newtop, newspeed, steptype] = controlTop(top, newleft, this.state.fallspeed, ladders);
+      this.setState({playerstyle: {
+        width: playerwidth + "px",
+        height: playerheight + "px",
+        'backgroundColor': "yellow",
+        position: "absolute",
+        top: newtop + "px",
+        left: newleft + "px"
+      }})
+      var lastround = this.state.round - this.state.laststairround;
+      if (lastround > maxstairround || (lastround > minstairround && Math.random() < 0.03)) {
+        ladders.push(getRandomStair(this.state.round));
+        this.setState({laststairround: this.state.round});
+      }
+      var newhp = controlHp(this.state.hp, newtop, this.state.fallspeed, newspeed, this.state.lasthurt, steptype)
+      if (newhp < this.state.hp) {
+        this.setState({lasthurt: nohurtround});
+      } else {
+        var newhurt = Math.max(0, this.state.lasthurt - 1);
+        this.setState({lasthurt: newhurt});
+      }
+      this.setState({ladderpara: ladders});
+      this.setState({fallspeed: newspeed});
+      this.setState({hp: newhp});
+      if (newhp <= 0 || newtime-runtime > 100) {
+        this.resetGame();
+      }
     }
-    var newhp = controlHp(this.state.hp, newtop, this.state.fallspeed, newspeed, this.state.lasthurt, steptype)
-    if (newhp < this.state.hp) {
-      this.setState({lasthurt: nohurttime});
-    } else {
-      var newhurt = Math.max(0, this.state.lasthurt - 1);
-      this.setState({lasthurt: newhurt});
-    }
-    this.setState({})
-    this.setState({ladderpara: newladderpara});
-    this.setState({fallspeed: newspeed});
-    this.setState({hp: newhp});
-    if (newhp <= 0 || newtime-runtime > 100) {
-      this.resetGame();
-    }
-    this.setState({runtime: newtime});
-  },
-  _handlePressKey: function(event) {
-    if (event.keyCode == 97) { // console.log("left press");
-      this.setState({action: -1});
-    } else if(event.keyCode == 115) { // console.log("right press");
-      this.setState({action: 1});
-    }
-  },
-  _handleUpKey: function(event) {
-    this.setState({action: 0});
   },
   componentDidMount: function() {
     this.resetGame();
   },
-  componentWillMount: function() {
-    document.addEventListener("keypress", this._handlePressKey, false);
-    document.addEventListener("keyup", this._handleUpKey, false);
+  handleCodeChange: function(e) {
+    this.setState({codestring: e.target.value});
   },
-  componentWillUnmount: function() {
-    document.removeEventListener("keypress", this._handlePressKey, false);
-    document.removeEventListener("keyup", this._handleUpKey, false);
+  handleGo: function() {
+    this.setState({gogo: true});
   },
   getInitialState: function() {
     setInterval(this._timetic, pollInterval);
-    return { time: new Date()-0 , playerstyle: {}, hp: 0, action: 0, fallspeed: 0, lasthurt: 0, ladderpara: [], laststairtime: new Date()-0, runtime: new Date()-0 };
+    return { gogo: false, round: 0, playerstyle: {}, hp: 9, action: 0, fallspeed: 0, lasthurt: 0, ladderpara: [], laststairround: 0,
+      codestring: "// Get the player and ladders every round\nconsole.log(player);\nconsole.log(ladders);\n\n// 0: wait, -1: left, 1: right\naction = 1;" };
   },
   render: function() {
     var backgroundstyle = {
@@ -298,13 +328,16 @@ var ControlBox = React.createClass({
         <div style={backgroundstyle} />
         <Ladder ladderpara={this.state.ladderpara} />
         <div style={this.state.playerstyle} />
-        <Info time={this.state.time} hp={this.state.hp} />
+        <Info round={this.state.round} hp={this.state.hp} />
+        <CodeBox handleCodeChange={this.handleCodeChange}
+          codestring={this.state.codestring} />
+        <GoBox handleGo={this.handleGo} />
       </div>
     );
   }
 });
 
 ReactDOM.render(
-  <ControlBox />,
+  <ControlBox mode="code" />,
   document.getElementById('content')
 );
