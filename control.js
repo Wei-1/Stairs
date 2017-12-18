@@ -18,23 +18,110 @@ var minstairround = 8;
 var maxstairround = 40;
 var gravity = 1;
 var stairstartrate = 10;
-var nohurtround = 10;
+var nohurtround = 20;
 
-function tonumber(str) {
-  var numstr = str.replace(/\D/g,'');
-  return Number(numstr);
+function timeToStair(player, stair) {
+  // 1 / 2 * gravity * t ^ 2 + player.fallspeed * t - d = 0
+  var d = stair.y - player.y + player.height;
+  if(d < 0) return 1000;
+  var speed = player.fallspeed + 5;
+  return Math.sqrt(speed * speed + 2 * d) - speed;
+}
+
+function scoreStair(player, stair) {
+  var score = stair.type == 1 ? -1000 : 0;
+  score += player.score < 4 && stair.type == 1 ? -10000 : 0;
+  score += -Math.abs(stair.x - (150 - stair.width/2)) + 300;
+  return score;
+}
+
+function dirStair(player, stair) {
+  var staircenter = stair.x + stair.width / 2;
+  var playercenter = player.x + player.width / 2;
+  if(playercenter > staircenter) return -1;
+  else if(playercenter < staircenter) return 1;
+  else return 0;
+}
+
+function onAStair(player, ladders) {
+  var newspeed = player.fallspeed + gravity;
+  var stairspeed = 5;
+  var playerleft = player.x;
+  var playerright = playerleft + player.width;
+  var playerbottom = player.y + player.height;
+  for (var i = 0; i < ladders.length; i++) {
+    var stair = ladders[i];
+    var stairtop = stair.y;
+    var stairtop_last = stairtop + 5;
+    var stairleft = stair.x;
+    var stairright = stairleft + stair.width;
+    var stairtype = stair.type;
+    if (playerright > stairleft && playerleft < stairright) {
+      if (playerbottom <= stairtop_last + stairspeed && playerbottom + newspeed >= stairtop) {
+        return stair;
+      }
+    }
+  }
+  return null;
+}
+
+var targetStair = null;
+
+function easyBot(player, ladders) {
+  var stair = onAStair(player, ladders);
+  if(stair) targetStair = null;
+  else if(targetStair) return dirStair(player, targetStair);
+  var playerleft = player.x;
+  var playerright = playerleft + player.width;
+  var reachLadders = ladders.filter(function(stairi) {
+    if(stairi.y - 10 > player.y + player.height) {
+      var t = timeToStair(player, stairi);
+      var horidist = t * 5;
+      var stairleft = stairi.x;
+      var stairright = stairleft + stairi.width;
+      var d = Math.max(playerleft - stairright, stairleft - playerright);
+      // console.log(stairi.x + " " + stairi.y + "   " + horidist + " " + d);
+      if(d < horidist) {
+        if(stair) {
+          var avoidleft = stair.x;
+          var avoidright = stair.x + stair.width;
+          var staircenter = (stairleft + stairright) / 2;
+          return avoidleft > staircenter + playerwidth / 2 || avoidright < staircenter - playerwidth / 2;
+        } else return true;
+      } else return false;
+    } else return false;
+  });
+  // console.log(reachLadders.length);
+  if(reachLadders.length > 0) {
+    var newstair = reachLadders[0];
+    var stairScore = scoreStair(player, newstair);
+    reachLadders.map(function(stairi) {
+      var scorei = scoreStair(player, stairi);
+      if(scorei > stairScore) {
+        stairScore = scorei;
+        newstair = stairi;
+      }
+    });
+    // console.log(newstair.x + " " + newstair.y + " " + stairScore);
+    if(stairScore > -5000) {
+      if((stair && stairScore > 0) || !stair) {
+        targetStair = newstair;
+        return dirStair(player, newstair);
+      } else return 0;
+    } else return 0;
+  } else return 0;
 }
 
 function getRandomStair(round) {
   var type = 0;
   var typerand = Math.random();
-  var level = Math.min(90, round * 5);
-  if (level >= 5 && typerand < (level + 10) / 200.0) {
+  var level = round / 30;
+  if (level > 10 && typerand < level / 1000) {
     type = 1;
-  } else if (level >= 5 && typerand > 0.9) {
+  } else if (typerand < 0.1) {
     type = 2;
   }
-  return {x: Math.floor(Math.random() * (windowwidth - stairwidth)), y: 500, type: type, hight: stairheight, width: stairwidth};
+  return {x: Math.floor(Math.random() * (windowwidth - stairwidth)), y: 500, type: type, height: stairheight, width: stairwidth};
 }
 
 function isNotOut(stair) {
@@ -49,19 +136,19 @@ function nextStair(stair) {
 function controlTop(playertop, playerleft, fallspeed, ladderpara) {
   var playerbottom = playertop + playerheight;
   var newspeed = fallspeed + gravity;
-  var stairspeed = pollInterval / stairstartrate;
+  var stairspeed = 5;
   for (var i = 0; i < ladderpara.length; i++) {
     var stairpara = ladderpara[i];
-    var stairtop_last = stairpara.y + 5;
-    var stairtop = stairtop_last - 5;
+    var stairtop = stairpara.y;
+    var stairtop_last = stairtop + 5;
     var stairleft = stairpara.x;
     var stairtype = stairpara.type;
     if (playerleft + playerwidth > stairleft && playerleft < stairleft + stairwidth) {
       if (playerbottom <= stairtop_last + stairspeed && playerbottom + newspeed >= stairtop) {
         if (stairtype == 2) {
-          return [stairtop - playerheight - gravity, -12, stairtype];
+          return [stairtop - playerheight - gravity, -14, stairtype];
         } else {
-          return [stairtop - playerheight - gravity, 0, stairtype];
+          return [stairtop - playerheight - gravity, -4, stairtype];
         }
       }
     }
@@ -254,56 +341,56 @@ var GoBox = React.createClass({
 
 var ControlBox = React.createClass({
   resetGame: function() {
+    if(this.state.round > 0) console.log("Score: " + Math.floor(this.state.round / 30));
     this.setState({
       gogo: false,
-      hp: initialplayerhp,
       action: initialplayeraction,
       lasthurt: 0,
       round: 0,
-      laststairround: 0,
-      playerstyle: {width: playerwidth, height: playerheight, y: initialplayery, x: initialplayerx, fallspeed: initialplayerspeed},
+      laststairround: minstairround,
+      player: {width: playerwidth, height: playerheight, y: initialplayery, x: initialplayerx,
+        fallspeed: initialplayerspeed, hp: initialplayerhp},
       ladderpara: [
-        {x: 150 - stairwidth/2, y: 250, type: 0, hight: stairheight, width: stairwidth},
-        {x: 80 - stairwidth/2, y: 320, type: 0, hight: stairheight, width: stairwidth},
-        {x: 220 - stairwidth/2, y: 320, type: 0, hight: stairheight, width: stairwidth},
-        {x: 150 - stairwidth/2, y: 390, type: 0, hight: stairheight, width: stairwidth},
-        {x: 80 - stairwidth/2, y: 460, type: 0, hight: stairheight, width: stairwidth},
-        {x: 220 - stairwidth/2, y: 460, type: 0, hight: stairheight, width: stairwidth}
+        {x: 150 - stairwidth/2, y: 250, type: 0, height: stairheight, width: stairwidth},
+        {x: 80 - stairwidth/2, y: 320, type: 0, height: stairheight, width: stairwidth},
+        {x: 220 - stairwidth/2, y: 320, type: 0, height: stairheight, width: stairwidth},
+        {x: 150 - stairwidth/2, y: 390, type: 2, height: stairheight, width: stairwidth},
+        {x: 80 - stairwidth/2, y: 460, type: 0, height: stairheight, width: stairwidth},
+        {x: 220 - stairwidth/2, y: 460, type: 0, height: stairheight, width: stairwidth}
       ]
     })
   },
   _timetic: function() {
     if(this.state.gogo) {
       this.setState({round: this.state.round + 1});
+      var round = this.state.round;
+      var player = this.state.player;
       var ladders = this.state.ladderpara.filter(isNotOut).map(nextStair);
-      var player = this.state.playerstyle;
       var action = 0;
       var runtime = new Date()-0;
-      eval(this.state.codestring);    
+      eval(this.state.codestring);
       var newtime = new Date()-0;
-      var newleft = controlLeft(action, this.state.playerstyle.x);
-      var [newtop, newspeed, steptype] = controlTop(this.state.playerstyle.y, newleft, this.state.playerstyle.fallspeed, ladders);
-      this.setState({playerstyle: {
-        width: playerwidth,
-        height: playerheight,
-        fallspeed: newspeed,
-        y: newtop,
-        x: newleft
-      }})
+      var newleft = controlLeft(action, this.state.player.x);
+      var [newtop, newspeed, steptype] = controlTop(this.state.player.y, newleft, this.state.player.fallspeed, ladders);
       var lastround = this.state.round - this.state.laststairround;
       if (lastround > maxstairround || (lastround > minstairround && Math.random() < 0.03)) {
         ladders.push(getRandomStair(this.state.round));
         this.setState({laststairround: this.state.round});
       }
-      var newhp = controlHp(this.state.hp, newtop, this.state.playerstyle.fallspeed, newspeed, this.state.lasthurt, steptype)
-      if (newhp < this.state.hp) {
+      var newhp = controlHp(this.state.player.hp, newtop, this.state.player.fallspeed, newspeed, this.state.lasthurt, steptype)
+      if (newhp < this.state.player.hp) {
         this.setState({lasthurt: nohurtround});
       } else {
         var newhurt = Math.max(0, this.state.lasthurt - 1);
         this.setState({lasthurt: newhurt});
       }
+      if(newtop < 0) {
+        newspeed = 0;
+        newtop = 0;
+      }
+      this.setState({player: {width: playerwidth, height: playerheight, fallspeed: newspeed,
+        y: newtop, x: newleft, hp: newhp}});
       this.setState({ladderpara: ladders});
-      this.setState({hp: newhp});
       if (newhp <= 0 || newtime-runtime > 100) {
         this.resetGame();
       }
@@ -320,8 +407,24 @@ var ControlBox = React.createClass({
   },
   getInitialState: function() {
     setInterval(this._timetic, pollInterval);
-    return { gogo: false, round: 0, playerstyle: {}, hp: 9, action: 0, lasthurt: 0, ladderpara: [], laststairround: 0,
-      codestring: "// Get the player and ladders every round\nconsole.log(player);\nconsole.log(ladders);\n\n// 0: wait, -1: left, 1: right\naction = 1;" };
+    return { gogo: false, round: 0, player: {}, action: 0, lasthurt: 0, ladderpara: [], laststairround: 0,
+      codestring: 
+`
+// Get the player and ladders every round
+console.log("Round: " + round);
+console.log("Player: " + player.x + " " + player.y + " " + player.width + " " + player.height + " " + player.hp + " " + player.fallspeed);
+ladders.map(function(stair) {
+  console.log("Stair: " + stair.x + " " + stair.y + " " + stair.width + " " + stair.height + " " + stair.type);
+});
+
+// 0: wait, -1: left, 1: right
+// The easyBot example:
+action = easyBot(player, ladders);
+
+// Write Your Code Here
+// action = 1;
+`
+    };
   },
   render: function() {
     var backgroundstyle = {
@@ -336,8 +439,8 @@ var ControlBox = React.createClass({
       <div>
         <div style={backgroundstyle} />
         <Ladder ladderpara={this.state.ladderpara} />
-        <Player player={this.state.playerstyle} />
-        <Info round={this.state.round} hp={this.state.hp} />
+        <Player player={this.state.player} />
+        <Info round={this.state.round} hp={this.state.player.hp} />
         <CodeBox handleCodeChange={this.handleCodeChange}
           codestring={this.state.codestring} />
         <GoBox handleGo={this.handleGo} />
